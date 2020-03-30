@@ -1,0 +1,1248 @@
+
+#+title: Une grammaire basique du guadeloupéen
+#+author: Emmanuel Schang
+#+LaTeX_CLASS: book-noparts
+#+LANGUAGE: fr
+#+LaTeX_HEADER: \usepackage[frenchb]{babel}
+# fixe le niveau de profondeur des titres (sinon, cela devient des paragraphes)
+#+OPTIONS: H:5
+#+OPTIONS:
+
+#+LaTeX_CLASS_OPTIONS: [12pt]
+#+LaTeX_HEADER: \usepackage[T1]{fontenc}
+
+#+LaTeX_HEADER: \usepackage[scaled]{beraserif}
+#+LaTeX_HEADER: \usepackage[scaled]{berasans}
+#+LaTeX_HEADER: \usepackage[scaled]{beramono}
+#+LATEX_HEADER: \usepackage{linguex}
+#+LATEX_HEADER: \usepackage{qtree}
+#+LATEX_HEADER: \usepackage{tikz}
+#+LATEX_HEADER: \usepackage{tikz-qtree}
+#+LATEX_HEADER: \usepackage{multicol}
+#+LATEX_HEADER: \usepackage{forest}
+#+LATEX_HEADER:\usepackage{smartdiagram}
+#+LATEX_HEADER:\usesmartdiagramlibrary{additions}
+#+LATEX_HEADER: \usepackage{setspace}
+ \onehalfspacing
+#+LATEX_HEADER: \usepackage[french]{minitoc}
+#+LATEX_HEADER: \usepackage{graphicx}
+#+LATEX_HEADER: \usepackage{graphics}
+#+LATEX_HEADER: \usepackage{txfonts}
+#+OPTIONS: toc:nil 
+
+
+* Introduction
+Il s'agit essentiellement d'une documentation du code (literate programming). Un ouvrage est en préparation pour LangSciPress.
+
+Cette métagrammaire a fait l'objet de plusieurs publications :
+- cite:schang_extended_2013 qui traite des marqueurs Temps Mode et Aspect,
+- cite:schang2018metagrammatical à propos de la morphologie périphrastique en créole,
+- cite:petitjean:halshs-01991736 pour une analyse de la négation en créole.
+
+Par ailleurs, un corpus de phrases-test est en cours de constitution avec l'aide de Juliette Sainton  (ÉSPE de Guadeloupe). Ce corpus est constitué de phrases à tester par la grammaire électronique. La syntaxe est la suivante :
+#+BEGIN_SRC json -n
+gloss: Cela fait déjà un bon moment que je suis là
+text: ja ni on bon moman an la
+axiom: s
+Expected: 1
+#+END_SRC
+
+La ligne =gloss= est la traduction de la phrase testée. La ligne =text= contient la phrase à tester. L'axiome est =s= (phrase) et l'on attend une seule réponse (=expected:1=).
+Cela permet également de tester si notre grammaire sur-génère en testant des phrases agrammaticales, pour lesquelles on n'attend aucune réponse (=expected:0=) :
+#+BEGIN_SRC json -n
+gloss   : Jean aime Lucette
+text    : enmé Jan Lisette
+axiom   : s
+expected: 0
+#+END_SRC
+
+Le fait que des linguistes créolophones s'emparent de cette grammaire est pour moi la meilleure des récompenses, mais c'est aussi un gage de qualité pour la ressource.
+ 
+
+* Déclarer les principes 
+
+Il convient de débuter par une énumération des principes et des dimensions qui vont être utilisés dans la grammaire. Ici, nous utilisons la dimension =syn= (syntaxe) avec un principe qui est =color=.
+Ce principe est issu de cite:crabbe_representation_2005. Il s'agit de décorer les noeuds de la métagrammaire d'un trait  =color=black= qui permet de réduire les possibilités d'unification de certains noeuds de la métagrammaire par un jeu de combinaison de couleurs (v. figure [[fig:colors]] ). La description des combinaisons de couleurs est détaillée ici : http://dokufarm.phil.hhu.de/xmg/#principles_and_plugins. Ce procédé  sera assez peu utilisé dans cette grammaire. 
+
+#+ATTR_LATEX: :width 7cm
+#+CAPTION: Table de valeur des combinaisons de couleurs (source: http://dokufarm.phil.hhu.de/xmg/#principles_and_plugins) 
+#+NAME:   fig:colors
+[[./colors.png]]
+
+
+#+BEGIN_SRC xmg -n -r 
+use color with () dims (syn)
+#+END_SRC
+
+
+* Déclarer les types
+
+
+ XMG2 n'est pas très exigeant concernant le typage des objets. Une simple déclaration suffit :
+ 
+# +CAPTION: Déclaration des catégories 
+#+BEGIN_SRC xmg -n -r 
+type CAT={
+% cat
+lex,np,n,v,pred,s,adj,
+prep,quant,nquant,lquant,genitive,
+advI,Rel,vp,adv,rv,
+predn,preda,nloc,nploc,preploc,beCopFin,wh,
+%flex
+poko,péké,
+a,lasa,
+def,dem,pl,
+la,sé,
+t,imperf,neg,prosp,ka,ké,té,pa,
+jen,negT,ki,q
+}
+#+END_SRC
+
+Dans la sous-liste =cat= figurent les catégories lexicales et syntagmatiques de la grammaire. 
+
+Dans la sous-liste =flex= figurent les catégories fonctionnelles. Celles-ci ont parfois directement comme nom le signifiant du morphème, comme par exemple /ka/ qui est un marqueur aspectuel. Dans la mesure où ce sont des catégories ayant pour extension un singleton, ceci vise à rendre la grammaire plus lisible.
+
+Cette liste est nécessaire car les noeuds =flex= sont lus par TuLiPa (parser).
+
+D'autres types sont déclarés :
+- Ligne [[(mark)]] figurent le type de noeuds de la grammaire TAG : =subst= pour substitution par exemple, =foot= pour les noeuds pied, =coanchor= pour les co-ancres, etc.
+- Ligne [[(label)]] permet de déclarer un type non-spécifié.
+- les autres types (BOOL et COLOR) sont assez simples à comprendre.
+
+#+BEGIN_SRC xmg -n -r 
+type MARK={subst,foot,none,nadj,anchor,coanchor,flex} (ref:mark)
+type LABEL ! (ref:label)
+type BOOL={+,-}
+type COLOR ={red,black,white}
+#+END_SRC
+
+* Déclarer les propriétés
+Les propriétés ont pour rôle de :
+- fournir au compilateur les informations nécesaires pour l'output,
+- décorer les noeuds avec des labels liés au formalisme utilisé.
+
+Les informations techniques sur les propriétés et leur syntaxe sont disponibles sur http://dokufarm.phil.hhu.de/xmg/#properties. 
+
+Ici, on utilisera les propriétés =color= et =mark= (v. les types ci-dessus) ainsi que des propriétés plus spécifiques comme =proj= (ligne [[(proj)]] ) qui indiquera de quelle projection est un noeud, =nc= (ligne [[(nc)]] ) pour la concordance négative et =wh= (ligne [[(wh)]] ) pour les extractions. 
+#+BEGIN_SRC xmg -n
+property color      : COLOR
+property mark 	    : MARK
+#+END_SRC
+
+#+BEGIN_SRC xmg -n -r 
+feature cat  : CAT
+feature proj : CAT (ref:proj)
+feature nc   : LABEL (ref:nc)
+feature wh   : LABEL  (ref:wh)
+#+END_SRC
+
+* Les classes
+  :PROPERTIES:
+  :header-args: :tangle yes
+  :END:
+
+** Le domaine verbal
+
+** =Intransitive=
+ Le point de départ pour toutes les classes verbales est la Classe =Intransitive= qui consiste en une sorte d'épine dorsale sur laquelle vont s'appuyer plusieurs autres classes.
+
+ Voici sa forme d'arbre  :
+
+ #+BEGIN_EXPORT latex 
+ \begin{forest}
+ [v 
+ [v$\diamond$]
+ ]
+ \end{forest}
+ #+END_EXPORT
+
+ Ceci correspond au code suivant :
+
+
+ #+BEGIN_SRC xmg -n -r 
+class Intransitive
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=white)[cat = v, proj = v]{
+                node ?Y (mark=anchor,color=black)[cat= v, proj = lex]
+                }
+        }
+}
+ #+END_SRC
+
+** =Transitive=
+
+   La classe =Transitive=  importe la classe =Intransitive= et ajoute un noeud =np= pour le complément du verbe (ligne [[(compl)]] ).
+
+
+
+   #+BEGIN_SRC xmg -n -r
+class Transitive
+import Intransitive[]
+export ?Z
+declare ?Z ?NC
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np, nc=?NC] (ref:compl)
+         ; ?Y >> ?Z ; ?X -> ?Z
+        }*=[nc=?NC]
+}
+   #+END_SRC
+
+Le résultat est donc :
+
+
+  #+BEGIN_EXPORT latex 
+  \begin{forest}
+  [v 
+  [v$\diamond$]
+  [np]
+  ]
+  \end{forest}
+  #+END_EXPORT
+** =Ditransitive= et =Ditrans_vp=
+La classe ditransitive importe la classe =Intransitive= et ajoute deux noeuds soeurs =np= à la tête pour les compléments sélectionnés.
+
+
+#+BEGIN_SRC xmg -n -r
+class Ditransitive
+import Intransitive[]
+export ?Z ?W
+declare ?Z ?W
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np];
+  	 node ?W (mark=subst,color=black)[cat = np]
+         ; ?Y >> ?Z ; ?X -> ?Z ; ?Z >> ?W ; ?X -> ?W
+        }
+}
+#+END_SRC
+
+La classe =Ditrans_vp= est similaire à =Ditransitive= mais elle prend un complément de type =vp=.
+
+Cela  permet de traiter les exemples tels que :
+#+BEGIN_EXPORT latex
+\exg. Jan apwann Nannan (byen) chanté\\
+Jean apprendre Nannan  (bien) chanter\\
+'Jean a appris à Nannan à bien chanter'
+
+#+END_EXPORT 
+
+
+L'arbre élémentaire du verbe =ditrans_vp= sera de la forme suivante, une fois les TMAs et le sujet associés :
+
+#+BEGIN_EXPORT latex 
+  \Tree [.s [.np$\downarrow$ ] [.v$^{proj:v}$ [.v \\apwann ] [.np$\downarrow$ ]  [.vp$\downarrow$ ] ] ]\\
+
+#+END_EXPORT
+
+
+#+BEGIN_SRC xmg +n 
+class Ditrans_vp
+import Intransitive[]
+export ?Z ?W
+declare ?Z ?W
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np];
+  	 node ?W (mark=subst,color=black)[cat = vp]
+         ; ?Y >> ?Z ; ?X -> ?Z ; ?Z >> ?W ; ?X -> ?W
+        }
+}
+
+#+END_SRC
+
+On crée une classe pour les verbes ditransitifs avec un argument VP :
+#+BEGIN_SRC xmg -n -r 
+class n0Vn1vp
+{
+	subject[] ;
+	Ditrans_vp[];
+	TMA[]
+}
+#+END_SRC
+
+** VP autonomes
+Les VP sont parfois des arguments de verbes ou fonctionnent de manière autonome. Ils ne sont  associés ni aux TMA ni aux classes décrivant les sujets (fonction sujet). 
+
+La classe =vp= rassemble les différentes formes de VP autonomes.
+
+#+BEGIN_SRC xmg -n -r
+
+class v_no_s
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=black)[cat = vp, proj = v]{
+                node ?Y (mark=anchor,color=black)[cat= v, proj = lex]
+                }
+        }
+}
+class vp_trans
+import v_no_s[]
+export ?Z
+declare ?Z ?NC
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np, nc=?NC]
+         ; ?Y >> ?Z ; ?X -> ?Z
+        }*=[nc=?NC]
+}
+class vp_ditrans
+import v_no_s[]
+export ?Z ?W
+declare ?Z ?W
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np];
+  	 node ?W (mark=subst,color=black)[cat = np]
+         ; ?Y >> ?Z ; ?X -> ?Z ; ?Z >> ?W ; ?X -> ?W
+        }
+}
+class vp 
+{
+v_no_s[] | vp_trans[] | vp_ditrans[]
+}
+#+END_SRC
+
+** Les marqueurs TMA
+Les marqueurs de Temps, Mode et Aspect figurent parmi les projections flexionnelles dans les arbres élémentaires des verbes finis.
+
+Ils sont directement encodés comme des co-ancres du verbe. On utilise le trait =proj= pour contraindre leur ordre linéaire :
+#+BEGIN_SRC xmg -n -r
+class Imperf
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = imperf]{
+                node ?Y (mark=flex,color=red)[cat= ka]%ajout de la co-ancre
+                node ?Z (color=black)[cat = @{pred,v}, 
+		proj = @{v,preploc,nloc,preda,predn} ]
+                }
+        }
+}
+class Prosp
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = prosp]{
+                node ?Y (mark=flex,color=red)[cat= ké]
+                node ?Z (color=black)[cat = @{pred,v}, 
+		proj = @{imperf,v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+class Tensed
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = t]{
+                node ?Y (mark=flex,color=red)[cat= té]
+                node ?Z (color=black)[cat = @{pred,v}, 
+		proj = @{prosp,imperf,v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+class Neg
+export ?X ?Y ?Z
+declare ?X ?Y ?Z ?N 
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = neg]{
+                node ?Y (mark=flex,color=red)[cat= pa]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{negT,t,imperf,v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+#+END_SRC
+ Ci-dessus ne figurent que les TMA : /ka , ké, té/. Nous verrons plus loin que d'autres éléments clitiques au verbe se combinent avec les TMA (négation, adverbes).
+** La négation phrastique
+La classe =Neg= correspond au fragment d'arbre qui contient le marqueur de négation phrastique /pa/ qui va donner la polarité négative à la phrase. Le trait =nc= sera commun à toutes les classes négatives et sera donc factorisé. Il n'apparaît donc pas directement dans la classe =Neg=.
+
+La classe =NegT= correspond au fragment d'arbre du marqueur temporel /jen/ qui est obligatoirement lié à /pa/.
+
+#+BEGIN_SRC xmg -n -r
+class Neg
+export ?X ?Y ?Z
+declare ?X ?Y ?Z ?N 
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = neg]{
+                node ?Y (mark=flex,color=red)[cat= pa]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{negT,t,imperf,v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+ 
+class NegT
+export ?X ?Y ?Z
+declare ?X ?Y ?Z ?N 
+
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = negT]{
+                node ?Y (mark=flex,color=red)[cat= jen]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{t,prosp,imperf,v,preploc,nloc,preda,predn}]
+                }
+        };
+  Neg[]
+}
+#+END_SRC
+
+La combinaison de /pa/ et du TMA /ké/ sous la forme /péké/ (voire /péé/ chez certains locuteurs) est rendue dans la classe =péké= qui sera en distribution complémentaire avec =Neg=.
+
+#+BEGIN_SRC xmg +n
+class péké
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = neg]{
+                node ?Y (mark=flex,color=red)[cat= péké]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+#+END_SRC
+
+Il en va de même de la classe =poko= qui combine /pa/ et l'adverbe /ko/ 'encore'.
+#+BEGIN_SRC xmg +n
+class poko
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = neg]{
+                node ?Y (mark=flex,color=red)[cat= poko]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{t,prosp,imperf,v,preploc,nloc,preda,predn}]
+                }
+        }
+}
+#+END_SRC
+** La classe =TMA= (marqueurs pré-verbaux)
+    Pour faciliter la présentation sur la forme de disjonctions, on crée une classe fictive (dummy) =None= qui est vide et qui n'a pour seule fonction que de s'opposer à une autre classe.
+
+La classe =TMA= combine donc les classes des marqueurs pré-verbaux. Le choix de =None= dans les quatre conjonctions donne un verbe 'nu' (verbe sans marqueur pré-verbal).
+
+La ligne [[(nctrick)]] introduit le trait =nc= qui sera positif pour toutes les classes négatives et négatif pour =None=. Ce trait sera utilisé pour tous les phénomènes de concordance négative. 
+
+#+BEGIN_SRC xmg -n -r
+class None
+
+class TMA
+{
+  { Prosp[]  | None[] };
+  { Imperf[] | None[] };
+  { Tensed[] | None[] };
+  {{ Neg[] | NegT[] | poko[] | péké[] }*=[nc= +] | None[]*=[nc= -] } (ref:nctrick) 
+}
+#+END_SRC
+
+
+** Les classes pour la fonction sujet
+
+La 'super' classe =Subject= rassemble trois classes distinctes définies pour des positions différentes de l'argument sujet. 
+
+Les trois positions distinctes sont exprimées par la disjonction suivante :
+#+BEGIN_SRC xmg -n -r
+class subject 
+{CanSubject[] | RelSubject[] | WhSubject[]}
+#+END_SRC
+
+
+*** La classe =CanSubject= 
+
+Il s'agit de la classe du sujet dans sa position 'canonique', c'est-à-dire la position pré-verbale ou pour être plus précis, pré-prédicative car il existe des prédicats non verbaux.
+
+La ligne [[(negconcord)]] présente le trait =nc= qui permet de percoler la valeur négative et bloque les GN négatifs  en sujet s'il n'y a pas de TMA négatif.  
+
+#+BEGIN_SRC xmg -n -r
+class CanSubject
+export ?X ?Y ?Z
+declare ?X ?Y ?Z ?NC
+{ <syn>{
+        node ?X (color=black)[cat = s, proj = pred]{
+                node ?Y (mark=subst,color=black)[cat= np, nc=?NC]
+                node ?Z (color=black)[cat = @{pred,v},
+		proj = @{t,v,prosp,imperf,neg,preploc,nloc,preda,predn}]
+                }
+        }*=[nc=?NC] (ref:negconcord)
+}
+#+END_SRC
+*** La classe =RelSubject=
+
+La classe =RelSubject= est utilisée pour les sujets extraits :
+
+#+BEGIN_EXPORT latex
+\exg. moun [ki té bwè limonad]\\
+personne qui \textsc{pst} boire limonade\\
+'La personne qui boit de la limonade'
+#+END_EXPORT
+
+La place de l'argument sujet du verbe est occupée par deux éléments :
+- le noeud pied N*,
+- le pronom relatif /ki/
+
+
+#+BEGIN_SRC xmg -n -r
+class RelSubject
+export ?X ?Y ?Z ?W ?P
+declare ?X ?Y ?Z ?W ?P ?NC
+{ <syn>{
+	 node ?W (color=black)[cat = n]{
+                node ?P (mark=foot,color=red)[cat = n]
+                node ?X (color=black)[cat = s]{
+		     node ?Y (color=red, mark=flex)[cat = ki] 
+		     node ?Z (color=black)[cat = @{pred,v},
+		     proj = @{t,v,prosp,imperf,neg,preploc,nloc,preda,predn}]
+						}
+                }
+	}
+}
+#+END_SRC
+
+
+Nota : certains locuteurs n'acceptent cette phrase que si le NP possède une valeur générique. Pour une valeur spécifique, il faudra que le N tête soit défini (moun [ki té bwè limonad] -la).
+*** La classe =WhSubject=
+Il s'agit de la la classe pour les extractions du sujet interrogatif en position topique :
+#+BEGIN_EXPORT latex
+\exg. ki moun ki manjé ?\\
+quelle personne Rel manger\\
+'Qui a mangé ?' 
+#+END_EXPORT
+
+#+BEGIN_SRC xmg -n -r
+class WhSubject
+export ?X ?Y ?Z ?W ?P
+declare ?X ?Y ?Z ?W ?P ?NC
+{ <syn>{
+	 node ?W (color=black)[cat = s]{
+                node ?P (mark=subst,color=black)[cat = np]
+                node ?X (color=black)[cat = s]{
+		     node ?Y (mark=flex,color=red)[cat = ki] 
+		     node ?Z (color=black)[cat = @{pred,v},
+		     proj = @{t,v,prosp,imperf,neg,preploc,nloc,preda,predn}]
+						}
+                }
+	}
+}
+
+#+END_SRC
+
+
+** Les formes impératives et hortatives
+*** Les impératifs
+
+Les impératifs ne contiennent ni  TMA ni sujets. Ils sont à la forme positive ou négative.
+
+#+BEGIN_EXPORT latex
+
+\ex. \ag. manjé sa !\\
+manger ça \\
+'Mange ça !'\\
+\bg. Pa domi !\\
+Neg dormir\\
+'Ne dors pas !'
+#+END_EXPORT
+
+
+#+BEGIN_SRC xmg -n -r 
+class imperative
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=black)[cat = s, proj = v]{
+                node ?Y (mark=anchor,color=black)[cat= v, proj = lex]
+                }
+        }
+}
+
+class NegImperative
+export ?X ?Y ?N ?M
+declare ?X ?Y ?N ?M
+{ <syn>{
+	node ?N	(color=black)[cat = s, proj = v]{
+	     	node ?M (mark=flex,color=red)[cat= pa]
+		node ?X (color=black)[cat = v, proj = v]{
+                     node ?Y (mark=anchor,color=black)[cat= v, proj = lex]
+		     	  }
+		     }
+        }
+}
+#+END_SRC
+
+*** Les hortatifs
+
+Il s'agit de formes proches sémantiquement des impératifs mais distincts syntaxiquement.
+
+Au moins 3 verbes, /ba/, /kité/ et /lésé/ sont associés à une construction hortative :
+
+#+BEGIN_EXPORT latex 
+ \exg.kité mwen pati ! 	 \\ 
+ quitter moi partir	 \\
+ 'Laissez-moi partir !'
+#+END_EXPORT
+
+
+#+BEGIN_SRC xmg -n -r 
+class Hortative
+{
+	HortDitrans_vp[] | NegHortDitrans_vp[]
+}
+
+class HortDitrans_vp
+import imperative[]
+export ?Z ?W
+declare ?Z ?W
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np];
+  	 node ?W (mark=subst,color=black)[cat = vp]
+         ; ?Y >> ?Z ; ?X -> ?Z ; ?Z >> ?W ; ?X -> ?W
+        }
+}
+class NegHortDitrans_vp
+import NegImperative[]
+export ?Z ?W
+declare ?Z ?W
+{ <syn>{ node ?Z (mark=subst,color=black)[cat = np];
+  	 node ?W (mark=subst,color=black)[cat = vp]
+         ; ?Y >> ?Z ; ?X -> ?Z ; ?Z >> ?W ; ?X -> ?W
+        }
+}
+
+#+END_SRC
+
+** Les extractions non-sujet
+Les extractions du sujet (le terme est probablement abusif car les sujets sont soumis à des contraintes d'îlots) ont déjà été traitées précédemment.
+
+J'évoque ici les extractions des autres arguments du verbe.
+*** La relative objet
+
+Son schéma est assez similaire à celle de l'extraction du sujet. Elle ne se combine pas avec les verbes intransitifs.
+
+
+ 
+ #+BEGIN_SRC xmg -n -r 
+class RelObject
+export ?X ?Y ?F ?W ?P ?A ?B
+declare ?X ?Y ?F ?W ?P ?A ?B
+{ <syn>{
+	 node ?W (color=red)[cat = n]{
+                node ?P (mark=foot,color=red)[cat = n]
+                node ?F (color=black)[cat = Rel]{
+		     node ?Y (color=red, mark=subst)[cat = Rel]
+		     node ?X (color=black)[cat = s, proj = pred]{
+		     	    node ?A (mark=subst,color=black)[cat= np]
+			     node ?B (color=black)[cat = @{pred,v},
+			     proj = @{t,v,prosp,imperf,neg,preploc,nloc,preda,predn}]
+								}
+						}
+                }
+	}
+}
+ #+END_SRC
+
+*** =WhObject=
+
+
+Cette classe contient le fragment pour les questions sur les objets.
+
+#+BEGIN_SRC xmg -n -r 
+class WhObject
+export ?X ?Y ?F ?W ?P ?A ?B ?C ?D
+declare ?X ?Y ?F ?W ?P ?A ?B ?C ?D
+{ <syn>{
+	 node ?W (color=black)[cat = s]{ 
+                node ?P (mark=subst,color=black)[cat = np] % proj=wh
+		     node ?X (color=black)[cat = s, proj = pred]{
+		     	    node ?A (mark=subst,color=black)[cat= np]
+			     node ?B (color=black)[cat = @{pred,v},
+			     proj = @{v,t,prosp,imperf,neg,preploc,nloc,preda,predn}]
+			     }
+                }
+	}
+}
+#+END_SRC
+
+*** Les classes intermédiaires pour la combinaison des extractions
+
+
+Ces classes vont rassembler des fragments que nous allons utiliser pour les classes verbales qui seront évaluées.
+
+
+#+BEGIN_SRC xmg -n -r 
+class VTransWhObject
+{
+WhObject[] ;
+TMA[] ;
+Intransitive[]
+}
+
+class VTransRelObject
+{
+RelObject[] ;
+TMA[] ;
+Intransitive[]
+}
+#+END_SRC
+
+** Les classes verbales à évaluer
+Les fragments se combinent au sein de classes verbales "complètes".
+
+De façon générale, on crée un bloc avec les classes qui s'assemblent pour l'indicatif (défini comme le non impératif). Ce bloc est en disjonction avec le bloc pour les impératifs. 
+
+#+BEGIN_SRC xmg -n -r 
+class n0V
+{
+{
+  subject[];
+  Intransitive[];
+  TMA[]
+} | {imperative[] | NegImperative[]}
+}
+#+END_SRC
+
+#+BEGIN_SRC xmg -n -r 
+
+class VTrans
+{
+{
+  subject[];
+  Transitive[] ;
+  TMA[]
+} | {TransImperative[] | NegTransImperative[]} 
+}
+
+class n0Vn1n2 
+{
+{
+	subject[] ;
+	Ditransitive[];
+	TMA[]
+} | {DitransImperative[] | NegDitransImperative[]}
+}
+
+class n0Vn1vp
+{
+	subject[] ;
+	Ditrans_vp[];
+	TMA[]
+}
+
+#+END_SRC
+
+#+BEGIN_SRC xmg -n -r 
+class VTransRelObject
+{
+RelObject[] ;
+TMA[] ;
+Intransitive[]
+}
+#+END_SRC
+
+La classe =n0Vn1= complète est donc sous la forme :
+
+#+BEGIN_SRC xmg -n -r 
+class n0Vn1
+{
+VTrans[] | VTransRelObject[] | VTransWhObject[]
+}
+#+END_SRC
+
+** Les prédicats non-verbaux
+On rassemble ici les prédications non-verbales. Par exemple :
+#+BEGIN_EXPORT latex 
+ \exg. 	moun la doktè/bèl/gwo/malad/asi chèz-la \\ 
+personne \textsc{def} docteur/belle/gros/malade/sur chaise-\textsc{def} 	 \\
+ 'Cette personne est docteur/belle/grosse/malade/sur la chaise'
+#+END_EXPORT
+
+Pour les noms prédicatifs (dans le lexique =predn=), on crée une classe =NpnVpredn= qui ressemble à la classe des verbes intransitifs. 
+#+BEGIN_SRC xmg -n -r 
+class NonVpredn 
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = predn]{
+                node ?Y (mark=anchor,color=black)[cat= predn,proj=lex]
+                }
+        }
+}
+#+END_SRC    
+
+On fait de même pour les adjectifs prédicatifs puis pour les noms locatifs (/laplaj/ vs /plaj/  "plage" par exemple).
+
+#+BEGIN_SRC xmg -n -r 
+class NonVpreda %%%%% pour les adjectifs prédicatifs
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = preda]{
+                node ?Y (mark=anchor,color=black)[cat= preda,proj=lex]
+                }
+        }
+}
+
+class NonVloc 
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = nloc]{
+                node ?Y (mark=anchor,color=black)[cat= nloc]
+                }
+        }
+}
+#+END_SRC
+
+Les prédicats prépositionnels locatifs s'accompagnent de noms 'normaux' qui ne sont pas =predn=.
+
+#+BEGIN_SRC xmg -n -r 
+class PrepLoc
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=white)[cat = pred, proj = preploc]{
+                node ?Z (mark=subst,color=black)[cat = preploc]
+                node ?Y (mark=anchor,color=black)[cat = n]
+                }
+        }
+}
+
+#+END_SRC
+
+
+Les prépositions locatives forment une classe également :
+#+BEGIN_SRC xmg -n -r 
+class Ploc
+export ?X ?Y
+declare ?X ?Y
+{ <syn>{
+  node ?X (color=red)[cat = preploc]{
+        node ?Y (mark=anchor,color=black)[cat = preploc]
+	     }
+        }
+}
+
+#+END_SRC
+
+Les prédicats locatifs sont donc de la forme suivante :
+
+#+BEGIN_SRC xmg -n -r 
+class LocPred
+{
+CanSubject[];
+{NonVloc[] | PrepLoc[]} ; 
+TMA[]
+}
+
+#+END_SRC
+
+On peut donc rassembler ces éléments prédicatifs non verbaux au sein d'une classe =zeroCop= qui exclue l'utilisation de la copule. 
+
+#+BEGIN_SRC xmg -n -r 
+class zeroCop
+{
+{CanSubject[] | RelSubject[] } ;
+{NonVpredn[] | NonVpreda[] } ;
+TMA[]
+}
+#+END_SRC
+
+** La copule
+La copule n'apparaît que lorsqu'un élément est extrait. 
+#+BEGIN_EXPORT latex 
+ \exg. sé doktè i yé	 \\ 
+\textsc{cop} docteur \textsc{3sg} être  	 \\
+ 'Il est vraiment docteur'
+#+END_EXPORT
+
+On peut définir les fragments et classes suivants :
+#+BEGIN_SRC xmg -n -r 
+class Yé
+export ?X ?Y 
+declare ?X ?Y 
+{ <syn>{
+        node ?X (color=white)[cat = v, proj = v]{
+                node ?Y (mark=anchor,color=black)[cat= beCopFin, proj = lex]
+                }
+        }
+}
+
+class Vyé
+{
+{RelObject[] | WhObject[]} ;
+{Neg[] | None[]} ;
+Yé[]
+}
+#+END_SRC
+
+** Les présentatifs                                               :noexport::
+On rassemble ici les deux présentatifs (présent et passé).
+#+BEGIN_EXPORT latex 
+ \exg. sé on doktè	 \\ 
+\textsc{pres.}  un docteur	 \\
+ 'C'est un docteur'
+#+END_EXPORT
+
+
+
+
+#+BEGIN_SRC xmg -n -r 
+class sé
+{
+CanSubject[];
+Transitive[]
+}
+#+END_SRC
+
+
+** Le domaine nominal
+Le domaine nominal est construit sur les mêmes principes que le domaine verbal.
+
+Je ne reviendrai pas sur les prédicats nominaux car ceux-ci sont traités dans la section précédente.
+
+On crée deux classes =Noun= et =Nounsat= qui vont être assemblées dans différents contextes :
+#+BEGIN_SRC xmg -n -r 
+class Noun
+export ?X ?Y
+declare ?X ?Y
+{ <syn>{
+        node ?X (mark=anchor,color=black)[cat = n]
+        }
+}
+
+class Nounsat
+export ?X ?Y 
+declare ?X ?Y
+{ <syn>{
+        node ?X (color=black)[cat = np]{
+	     node ?Y (mark=anchor,color=black)[cat = n]
+	     }
+        }
+}
+
+#+END_SRC
+
+*** Projections fonctionnelles du nom
+On va trouver les articles défini, démonstratif, pluriel.
+
+#+BEGIN_SRC xmg -n -r 
+class Def
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = n, proj = def]{
+                node ?Z (color=white)[cat = n, proj = def]
+                node ?Y (mark=flex,color=red)[cat = la]%ajout du co-ancre
+                }
+        }
+}
+class Defsat %défini saturé, ne projette pas plus haut 
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = def]{
+                node ?Z (color=white)[cat = n]
+                node ?Y (mark=flex,color=red)[cat = la]
+                }
+        }
+}
+#+END_SRC
+
+#+BEGIN_SRC xmg -n -r 
+class Dem
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = n, proj = def]{
+                node ?Z (color=white)[cat = n, proj = def]
+                node ?Y (mark=flex,color=red)[cat = lasa]
+                }
+        }
+}
+
+class Demsat
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = def]{
+                node ?Z (color=white)[cat = n, proj = def]
+                node ?Y (mark=flex,color=red)[cat = lasa]
+                }
+        }
+}
+#+END_SRC
+
+#+BEGIN_SRC xmg -n -r 
+class Pl
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = pl]{
+                node ?Y (mark=flex,color=red)[cat = sé]%ajout du co-ancre
+ 		node ?Z (color=white)[cat = n, proj = def]
+                }
+        }
+}
+
+#+END_SRC
+
+On peut donc définir des classes =DefN= etc., la classe =DEF= est créée pour servir de base au pluriel (qui ne peut être que défini). 
+
+#+BEGIN_SRC xmg -n -r 
+class DefN
+declare ?DF ?N 
+{
+	?DF = Defsat[];
+	?N = Noun[]
+}
+
+class DemN
+declare ?DF ?N 
+{
+	?DF = Demsat[];
+	?N = Noun[]
+}
+
+class DEF
+{
+	{Dem[] | Def[]}
+}
+
+class PlN
+declare ?Pl ?N ?DF
+{
+	?DF = DEF[];
+	?Pl = Pl[];
+	?N = Noun[]
+}
+
+#+END_SRC
+
+*Forme génitivale :*
+
+On crée une classe qui va éviter les boucles avec les formes génitivales :
+#+BEGIN_SRC xmg -n -r 
+class NPwthoG   
+{
+	{ DemN[] | PlN[] | Nounsat[] | DefN[]}
+}
+#+END_SRC
+
+et une classe pour la forme génitivale (/vwati a Jan/ 'la voiture de Jean') :
+#+BEGIN_SRC xmg -n -r 
+class Genitive
+declare ?NP  ?GEN
+{
+	?GEN = Gen_mark[];
+	?NP = NPwthoG[]
+}
+
+class Gen_mark 
+export ?X ?Y ?Z ?W ?V
+declare ?X ?Y ?Z ?W ?V
+{ <syn>{
+        node ?X (color=black)[cat = n, proj = n]{
+	     node ?W (mark=foot,color=black)[cat = n]
+	     node ?V (color=red)[cat = n]{
+                node ?Y (mark=flex,color=red)[cat = a]
+                node ?Z (color=white)[cat = np]
+		     			}
+                }
+        }
+}
+
+#+END_SRC 
+
+
+
+
+On peut donc rassembler toutes les formes du nom dans une classe =NP=.
+
+#+BEGIN_SRC xmg -n -r 
+class NP
+{
+	{WhN[] | DemN[] | PlN[] | Nounsat[] | DefN[] | Genitive[]}
+}
+#+END_SRC
+
+*** Quantifieurs
+On trouvera ici l'article indéfini et les éléments quantifieurs avec lesquels il commute.
+
+#+BEGIN_SRC xmg -n -r 
+class Quant  
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = quant]{
+                node ?Y (mark=anchor,color=black)[cat = quant]
+		 node ?Z (mark=foot,color=black)[cat= np] 
+                }
+        }
+}
+#+END_SRC
+
+Pour les 'low quantifiers' : 
+
+#+BEGIN_SRC xmg -n -r 
+class lQuant  
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = n]{
+                node ?Y (mark=anchor,color=black)[cat = lquant]
+                node ?Z (mark=foot,color=black)[cat = n]
+                }
+        }
+}
+#+END_SRC
+
+Pour le quantifieur négatif (/pon/ 'pas un') :
+
+#+BEGIN_SRC xmg -n -r 
+class NQuant  
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = quant, nc= +]{
+                node ?Y (mark=anchor,color=black)[cat = nquant]
+		 node ?Z (mark=foot,color=black)[cat= np] 
+                }
+        }
+}
+#+END_SRC
+
+Pour les articles interrogatifs :
+
+#+BEGIN_SRC xmg -n -r 
+class Whsat
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = np, proj = wh]{
+	     	node ?Y (mark=flex,color=red)[cat = ki]%ajout du co-ancre
+                node ?Z (color=white)[cat = n]
+                }
+        }
+}
+
+
+class WhN
+declare ?DF ?N 
+{
+	?DF = Whsat[];
+	?N = Noun[]
+}
+
+#+END_SRC
+
+** Prépositions
+
+Pour les prépositions qui sélectionnent un NP, on peut définir la classe suivante :
+
+#+BEGIN_SRC xmg -n -r 
+class Prep
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = prep, proj = prep]{
+                node ?Y (mark=anchor,color=black)[cat= prep]
+                node ?Z (mark=subst,color=black)[cat = np]
+                 }
+        }
+}
+#+END_SRC
+
+On peut assembler cette classe avec une classe qui sert pour les adjonctions avec le pied à gauche :
+
+#+BEGIN_SRC xmg -n -r 
+class LFoot
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = v, proj = v]{   %changement de couleur: red
+                node ?Y (mark=foot,color=black)[cat = v, proj = v]
+		 node ?Z (color=white)[cat= prep, proj = prep]
+                }
+        }
+}
+#+END_SRC
+
+En conséquence, un SP modifieur sera le résultat de l'assemblage des deux classes =LFoot= et =Prep= :
+#+BEGIN_SRC xmg -n -r 
+class SP_modif
+declare ?LF ?Pr
+{
+	?LF = LFoot[];
+	?Pr = Prep[]
+}
+#+END_SRC
+
+
+** Adjectifs
+
+Les adjectifs représentés ici sont les épithètes.
+Pour l'instant ne figurent dans la grammaire que les adjectifs prénominaux :
+
+#+BEGIN_SRC xmg -n -r 
+class Adj
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = n]{
+                node ?Y (mark=anchor,color=black)[cat = adj]
+                node ?Z (mark=foot,color=black)[cat = n]
+                }
+        }
+}
+#+END_SRC
+
+Le noeud pied ici  se trouve à droite. Je ne connais pas d'étude poussée sur les adjectifs en créole, donc je me contenterai de dire que certains adjectifs (les mêmes qu'en français ?) sont postposés et d'autres sont antéposés au N.  
+
+Pour les adverbes qui modifient les adjectifs ('tou' dans 'i tou piti' "il est tout petit"), on peut définir la classe suivante :
+
+#+BEGIN_SRC xmg -n -r 
+class Adv
+export ?X ?Y ?Z
+declare ?X ?Y ?Z
+{ <syn>{
+        node ?X (color=black)[cat = preda]{
+                node ?Y (mark=anchor,color=black)[cat = adv]
+                node ?Z (mark=foot,color=black)[cat = preda]
+                }
+        }
+}
+#+END_SRC
+
+
+
+* Évaluation
+  :PROPERTIES:
+  :header-args: :tangle yes
+  :END:
+
+ Toutes les classes n'ont pas le même statut. Certaines correspondent à des arbres TAG bien formés, d'autres en sont que des bouts d'arbres.
+ 
+Les classes à évaluer dans la grammaire sont donc :
+
+#+BEGIN_SRC xmg -n -r
+value n0V
+value n0Vn1
+value n0Vn1n2
+value Hortative
+value NegImperative
+value zeroCop
+value Adj
+value Noun 
+value Prep
+value SP_modif
+value NP
+value Quant
+value Rverb
+value advI
+value Adv
+value Vyé
+value Ploc
+value LocPred
+value NegDitransImperative
+value NQuant
+value lQuant
+#+END_SRC
+
+* 
+  :PROPERTIES:  
+  :UNNUMBERED: t  
+  :END:  
+
+bibliographystyle:apalike
+bibliography:biblioES.bib
