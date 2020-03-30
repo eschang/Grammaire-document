@@ -23,7 +23,7 @@
 #+LATEX_HEADER:\usepackage{smartdiagram}
 #+LATEX_HEADER:\usesmartdiagramlibrary{additions}
 #+LATEX_HEADER: \usepackage{setspace}
- \onehalfspacing
+
 #+LATEX_HEADER: \usepackage[french]{minitoc}
 #+LATEX_HEADER: \usepackage{graphicx}
 #+LATEX_HEADER: \usepackage{graphics}
@@ -1238,11 +1238,15 @@ value NegDitransImperative
 value NQuant
 value lQuant
 #+END_SRC
-
-* 
-  :PROPERTIES:  
-  :UNNUMBERED: t  
-  :END:  
-
-bibliographystyle:apalike
-bibliography:biblioES.bib
+* Bibliographie
+- Crabbé, B. (2005). Représentation informatique de grammaires d’arbres forte-
+ment lexicalisées : le cas de la grammaire d’arbres adjoints. PhD thesis, Uni-
+versité Nancy 2.
+- Petitjean, S. and Schang, E. (2018). Sentential negation and negative words
+in Guadeloupean Creole. In Negation and Negative Concord. The view from
+Creoles., pages 11–31.
+- Schang, E. (2013). Extended Projections in a Guadeloupean TAG Grammar. In
+Workshop on High-level Methodologies for Grammar Engineering@ ESSLLI
+2013, page 49.
+- Schang, E. (2018). A metagrammatical approach to periphrasis in gwadloupéyen.
+Quaderni di Linguistica e Studi Orientali, 4 :131–149.
